@@ -83,7 +83,7 @@
 ;;resolve on the cluster.
 (def length-seed (atom nil))
 (defn +default-randomizer+ [seed]
-  (default-randomizer seed @compo-lengths))
+  (default-randomizer seed @length-seed-lengths))
 
 (defn init-randomizer! [lengths]
   (reset! length-seed lengths))
