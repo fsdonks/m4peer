@@ -49,7 +49,7 @@
     :cluster (hd/dmap! marathon.analysis.random/supply-experiment xs)
     (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
 
-(defn ignore [_] identity)
+(defn passthrough [_] identity)
 
 (defn rand-target-model
   "Uses the target-model-par-av function from the marathon.analysis.experiment
@@ -57,7 +57,7 @@
   each level of supply."
   [proj & {:keys [phases lower upper levels gen seed->randomizer]
            :or   {lower 0 upper 1 gen util/default-gen
-                  seed->randomizer (fn [_] identity)}}]
+                  seed->randomizer passthrough}}]
    (let [project->experiments *project->experiments*]
      (->> (assoc proj :phases phases :lower lower :upper upper :levels levels
                  :gen gen  :seed->randomizer seed->randomizer)
@@ -79,8 +79,14 @@
           (apply concat)
           vec)))
 
+;;storing some state as a side-channel because it can'
+;;resolve on the cluster.
+(def length-seed (atom nil))
 (defn +default-randomizer+ [seed]
-  (default-randomizer seed compo-lengths))
+  (default-randomizer seed @compo-lengths))
+
+(defn init-randomizer! [lengths]
+  (reset! length-seed lengths))
 
 (defn rand-runs
   "Runs replications of the rand-target-model function.
@@ -97,7 +103,9 @@
   [proj & {:keys [reps phases lower upper seed levels compo-lengths seed->randomizer]
            :or   {lower 0 upper 1 seed +default-seed+
                   compo-lengths default-compo-lengths}}]
-  (let [seed->randomizer (or seed->randomizer +default-randomizer+)
+  (let [seed->randomizer (or seed->randomizer
+                             (do (init-randomizer! compo-lengths)
+                                 +default-randomizer+))
         gen              (util/->gen seed)
         phases           (or phases (util/derive-phases proj))]
     ;;input validation, we probably should do more of this in general.
