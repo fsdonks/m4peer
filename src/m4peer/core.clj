@@ -25,7 +25,7 @@
 (comment
   ;way to invoke functions
   (def path "~/repos/notional/supplyvariation-testdata.xlsx")
-  (def proj (a/load-project path))
+  #_(def proj (a/load-project path))
   (def phases [["comp" 1 821] ["phase-1" 822 967]])
 
   (def run2
@@ -47,7 +47,16 @@
         :compo-lengths random/default-compo-lengths
         :levels 3)))
 
- 
+
+  (def big-run
+    (binding [random/*noisy* 1.0
+              random/*run-site* :cluster]
+      (random/run "~/repos/notional/supplyvariation-testdata.xlsx"
+        :reps 30
+        :phases phases
+        :lower 0 :upper 1.5
+        :compo-lengths random/default-compo-lengths
+        #_#_:levels 3)))
 
   ;;We can just use run....and pass it high level args to control behavior.
   ;;This run will run 1 rep, degrading supply by 1, from a range of 1.5*initial AC supply,
