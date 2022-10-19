@@ -1,7 +1,6 @@
 (ns m4peer.patch
   (:require [marathon.analysis.random]
-            [hazeldemo.client :as hd]
-            [clojure.core.async :as a :refer [<!!]]))
+            [hazeldemo.client :as hd]))
 
 ;;now let's wrap marathon.analysis.random and get it working
 ;;with dmap! .
@@ -47,9 +46,7 @@
 (defn exec-experiments [xs]
   (case *run-site*
     :local   (util/pmap! *threads* supply-experiment xs)
-    :cluster (->> (hd/dmap! marathon.analysis.random/supply-experiment xs)
-                  (async/into [])
-                  (async/<!!))
+    :cluster (hd/dmap! marathon.analysis.random/supply-experiment xs)
     (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
 
 (defn rand-target-model
