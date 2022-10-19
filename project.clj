@@ -6,4 +6,4 @@
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [hazeldemo "0.1.0-SNAPSHOT"]
                  [marathon "4.2.3-SNAPSHOT"]
-                 [com.hazelcast/hazelcast-aws "3.3.1"]])
+                 [com.hazelcast/hazelcast-aws "3.4"]])
