@@ -46,7 +46,7 @@
 (defn exec-experiments [xs]
   (case *run-site*
     :local   (util/pmap! *threads* supply-experiment xs)
-    :cluster (hd/dmap! marathon.analysis.random/supply-experiment xs)
+    :cluster (hd/fmap marathon.analysis.random/supply-experiment xs) ;;naive
     (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
 
 (defn passthrough [_] identity)
