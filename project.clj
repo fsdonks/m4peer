@@ -5,7 +5,7 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [hazeldemo "0.1.0-SNAPSHOT"]
-                 [marathon  "4.2.7-SNAPSHOT"]
+                 [marathon  "4.2.12-SNAPSHOT"]
                  [com.hazelcast/hazelcast-aws "3.4"]]
   :plugins [[reifyhealth/lein-git-down "0.4.1"]]
   :middleware [lein-git-down.plugin/inject-properties]
