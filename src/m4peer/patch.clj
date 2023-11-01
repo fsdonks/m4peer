@@ -88,6 +88,18 @@
 (defn init-randomizer! [lengths]
   (reset! length-seed lengths))
 
+
+;;can we define shared state?  serialize
+;;function objects?
+
+#_
+(defn exec-replication [n]
+  (binding [*run-site* :local]
+    (rand-target-model proj
+                       :phases phases :lower lower :upper upper
+                       :gen   gen     :seed->randomizer seed->randomizer
+                       :levels levels)))
+
 (defn rand-runs
   "Runs replications of the rand-target-model function.
    Mid-level function meant to be invoked from higher-level APIs.
