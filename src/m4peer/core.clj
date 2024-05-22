@@ -4,6 +4,7 @@
 (ns m4peer.core
   (:require [chazel.core :as ch]
             [marathon.analysis.random :as random]
+            [marathon.analysis.util :as util]
             [marathon.analysis :as a]
             [hazeldemo.client :as client]
             [hazeldemo.worker :as w]
@@ -13,13 +14,27 @@
             [clojure.core.async :as async :refer
              [>! <! >!! <!! put! take! chan]]))
 
+;;we eschew this.
+#_
 (def +workers+ (marathon.analysis.util/guess-physical-cores))
 ;;need a worker.
+#_
 (def work-pool
   (do (when (seq @w/workers)
         (println [:reloading-peer])
         (w/kill-all!))
       (w/spawn-workers! +workers+)))
+
+(def ^:dynamic *run-site* :local)
+
+(defn exec-experiments [xs]
+  (case *run-site*
+    :local   (marathon.analysis.random/parallel-exec xs)
+    :cluster (client/fmap marathon.analysis.random/supply-experiment xs) ;;naive
+    (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
+
+;;we hook the default, when using the peer, to use our version of exec-experiments.
+(alter-var-root #'marathon.analysis.random/*exec-experiments* (fn [_] exec-experiments))
 
 ;;from random runs examples
 (comment
@@ -39,7 +54,7 @@
 
   (def run3
     (binding [random/*noisy* 1.0
-              random/*run-site* :cluster]
+              *run-site* :cluster]
       (random/run "~/repos/notional/supplyvariation-testdata.xlsx"
         :reps 5
         :phases phases
@@ -50,7 +65,7 @@
 
   (def big-run
     (binding [random/*noisy* 1.0
-              random/*run-site* :cluster]
+              *run-site* :cluster]
       (random/run "~/repos/notional/supplyvariation-testdata.xlsx"
         :reps 30
         :phases phases

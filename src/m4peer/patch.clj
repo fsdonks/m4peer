@@ -2,30 +2,7 @@
   (:require [marathon.analysis.random]
             [hazeldemo.client :as hd]))
 
-;;now let's wrap marathon.analysis.random and get it working
-;;with dmap! .
-
-(in-ns 'marathon.analysis.util)
-
-;;this is not serializable.  maybe a record would be.
-(defrecord generator [^java.util.Random gen]
-  clojure.lang.IFn
-  (invoke [this]    (.nextDouble gen))
-  (invoke [this n]  (* (.nextDouble gen) n))
-  (applyTo [this args]
-    (if-let [n (some-> args seq first)]
-      (.invoke this n)
-      (.invoke this)))
-  IGen
-  (next-long   [g] (.nextLong gen))
-  (next-double [g] (.nextDouble gen)))
-
-(defn ->gen [seed]
-  (let [^java.util.Random gen (java.util.Random. (long seed))]
-    (->generator gen)))
-
-(def default-gen (->gen 42))
-
+(comment 
 (in-ns 'marathon.analysis.random)
 
 (require '[hazeldemo.client :as hd])
@@ -43,11 +20,7 @@
              (seed->randomizer rep-seed))
       (try-fill src idx phases)))
 
-(defn exec-experiments [xs]
-  (case *run-site*
-    :local   (util/pmap! *threads* supply-experiment xs)
-    :cluster (hd/fmap marathon.analysis.random/supply-experiment xs) ;;naive
-    (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
+
 
 (defn passthrough [_] identity)
 
@@ -127,35 +100,6 @@
                             :phases phases :lower lower :upper upper
                             :gen   gen     :seed->randomizer seed->randomizer
                             :levels levels))
-                 (range reps)))))
+                 (range reps))))))
 
 (in-ns 'm4peer.patch)
-
-#_
-(defn rand-target-model
-  "Uses the target-model-par-av function from the marathon.analysis.experiment
-  namespace as a base. This function is modified to perform a random run for
-  each level of supply."
-  [proj & {:keys [phases lower upper levels gen seed->randomizer]
-           :or   {lower 0 upper 1 gen util/default-gen
-                  seed->randomizer (fn [_] identity)}}]
-   (let [project->experiments *project->experiments*]
-     (->> (assoc proj :phases phases :lower lower :upper upper :levels levels
-                 :gen gen  :seed->randomizer :seed->randomizer)
-          (e/split-project)
-          (reduce
-           (fn [acc [src proj]]
-             (let [experiments (project->experiments proj lower upper)]
-               (into acc
-                     (filter (fn blah [x] (not (:error x))))
-                     (util/pmap! *threads*
-                                 (fn experiment [[idx proj]]
-                                   (let [rep-seed   (util/next-long gen)]
-                                     (-> proj
-                                         (assoc :rep-seed rep-seed
-                                                :supply-record-randomizer
-                                                (seed->randomizer rep-seed))
-                                         (try-fill src idx phases))))
-                                 (map-indexed vector experiments))))) [])
-          (apply concat)
-          vec)))
