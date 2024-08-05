@@ -27,6 +27,11 @@
 
 (def ^:dynamic *run-site* :local)
 
+;;force us to reload nippy at runtime since we've extended protocols...
+;;runtime serialization patches.
+(require 'marathon.serial :reload)
+(taoensso.nippy/swap-serializable-whitelist! (fn [old] (conj old "java.util.Random")))
+
 (defn exec-experiments [xs]
   (case *run-site*
     :local   (marathon.analysis.random/parallel-exec xs)
