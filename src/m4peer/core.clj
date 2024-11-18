@@ -7,7 +7,7 @@
             [marathon.analysis.util :as util]
             [marathon.analysis :as a]
             [hazeldemo.client :as client]
-            [hazeldemo.worker :as w]
+            #_[hazeldemo.worker :as w]
             [hazeldemo.core :as core]
             [chazel.core :as ch]
             [m4peer.patch]
