@@ -1,4 +1,4 @@
-(defproject m4peer "0.1.5-SNAPSHOT"
+(defproject m4peer "0.1.6-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
@@ -6,8 +6,9 @@
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [hazeldemo "0.1.3-SNAPSHOT"
                   :exclusions [spork/spork]]
-                 [marathon  "4.2.19-SNAPSHOT"]
-                 [com.hazelcast/hazelcast-aws "3.4"]]
+                 [marathon  "4.2.20-SNAPSHOT"]
+                 [com.hazelcast/hazelcast-aws "3.4"]
+                 [com.taoensso/nippy "2.15.3"]]
   :plugins [[reifyhealth/lein-git-down "0.4.1"]]
   :middleware [lein-git-down.plugin/inject-properties]
   :aot          [marathon.analysis.random]

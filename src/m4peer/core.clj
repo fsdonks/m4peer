@@ -41,6 +41,66 @@
 ;;we hook the default, when using the peer, to use our version of exec-experiments.
 (alter-var-root #'marathon.analysis.random/*exec-experiments* (fn [_] exec-experiments))
 
+
+;;Distributed Logging Infrastructure
+;;==================================
+;;These need to be part of the shared peer service
+;;API.
+
+;;if we're running distributed, need to log distributed.
+;;do we hard-code the topic, or create a new name hmm...
+;;we need a pre-built logging function (maybe in m4peer, or even hazeldemo)
+;;that can push logs to a topic.  probably hazeldemo.
+;;then clients will shift to that topic for logging.
+
+(defn get-topic [nm]
+  (or (core/get-object nm)
+      (ch/hz-reliable-topic nm)))
+
+(defn start-listening [topic-name f]
+  (let [tp (get-topic topic-name)]
+    (ch/add-message-listener tp f)))
+
+(defn stop-listening [topic-name f]
+  (let [tp (get-topic topic-name)]
+    (ch/remove-message-listener tp f)))
+
+(defn with-ip [msg]
+  (str "<" @core/addr "> " msg))
+
+;;maybe we just define a tap?
+;;we don't want to redirect logging over the net if we're
+;;running on the caller...for now we do though...
+;;these probably need to be in m4peer.
+(defn start-logging! [topic-name]
+  ;;create a topic
+  ;;broadcast to everybody via log-topic that they should start logging,
+  ;;or use simple message passing?
+  ;;what if we have workers join the cluster?
+  ;;maybe we have an atomic value for log-topic....
+  (let [tp (get-topic topic-name)
+        publish (fn [x] (ch/publish tp (with-ip x)))]
+    (reset! util/log-fn publish)))
+
+(defn stop-logging! [topic-name]
+  (let [tp (core/destroy! topic-name)]
+    (reset! util/log-fn println)))
+
+;;need to tell everyone to start-logging!
+;;we could use a topic for this. already have some in core....
+(defmacro with-cluster-logging [topic & body]
+  `(let [id# (atom nil)]
+     (try (let [~'_   (println [:listening-to ~topic])
+                ~'_   (reset! id# (m4peer.core/start-listening ~topic println))
+                ~'_   (println [:start-logging ~topic])
+                ~'_   (hazeldemo.client/eval-all! '~`(m4peer.core/start-logging! ~topic))]
+            ~@body)
+          #_
+        (finally (do (println [:stop-logging ~topic])
+                     (m4peer.core/stop-logging! ~topic)
+                     (println [:stop-listening ~topic])
+                     (m4peer.core/stop-listening ~topic @id#))))))
+
 ;;from random runs examples
 (comment
   ;way to invoke functions
