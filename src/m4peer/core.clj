@@ -57,13 +57,18 @@
   (or (core/get-object nm)
       (ch/hz-reliable-topic nm)))
 
-(defn start-listening [topic-name f]
-  (let [tp (get-topic topic-name)]
-    (ch/add-message-listener tp f)))
+(def listener-id (atom nil))
 
-(defn stop-listening [topic-name f]
+(defn stop-listening [topic-name id]
   (let [tp (get-topic topic-name)]
-    (ch/remove-message-listener tp f)))
+    (ch/remove-message-listener tp id)))
+
+(defn start-listening [topic-name f]
+  (let [tp (get-topic topic-name)
+        id (do (when  @listener-id
+                 (stop-listening topic-name @listener-id))
+               (ch/add-message-listener tp f))]
+    (reset! listener-id id)))
 
 (defn with-ip [msg]
   (str "<" @core/addr "> " msg))
@@ -86,20 +91,26 @@
   (let [tp (core/destroy! topic-name)]
     (reset! util/log-fn println)))
 
+(defn echo [x] (util/log x) x)
+
+(defn invoke-all! [f arg] (ch/ftask (partial f arg) :members :all))
+
 ;;need to tell everyone to start-logging!
 ;;we could use a topic for this. already have some in core....
+
+;;let's prevent seqs for now....
 (defmacro with-cluster-logging [topic & body]
   `(let [id# (atom nil)]
      (try (let [~'_   (println [:listening-to ~topic])
                 ~'_   (reset! id# (m4peer.core/start-listening ~topic println))
                 ~'_   (println [:start-logging ~topic])
-                ~'_   (hazeldemo.client/eval-all! '~`(m4peer.core/start-logging! ~topic))]
-            ~@body)
-          #_
-        (finally (do (println [:stop-logging ~topic])
-                     (m4peer.core/stop-logging! ~topic)
-                     (println [:stop-listening ~topic])
-                     (m4peer.core/stop-listening ~topic @id#))))))
+                ~'_   (hazeldemo.client/eval-all! '~`(m4peer.core/start-logging! ~topic))
+                res#  (do ~@body)
+                ;~'_     (assert (not (seq? res#)) "result of the macro body cannot be a lazy sequence!")
+                ]
+            res#)
+          (finally #_(do (println [:stop-logging ~topic])
+                       (m4peer.core/stop-logging! ~topic))))))
 
 ;;from random runs examples
 (comment
