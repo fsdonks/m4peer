@@ -87,30 +87,48 @@
         publish (fn [x] (ch/publish tp (with-ip x)))]
     (reset! util/log-fn publish)))
 
+;;do we need to clean up the listener here?
 (defn stop-logging! [topic-name]
-  (let [tp (core/destroy! topic-name)]
+  (let [tp (core/destroy! topic-name)] ;;idempotent.
     (reset! util/log-fn println)))
+
+(defn stop-all-logging! [topic-name]
+  (hazeldemo.client/eval-all! `(m4peer.core/stop-logging! ~topic-name)))
+
+(defn start-all-logging! [topic-name]
+  (hazeldemo.client/eval-all! `(m4peer.core/start-logging! ~topic-name)))
 
 (defn echo [x] (util/log x) x)
 
 (defn invoke-all! [f arg] (ch/ftask (partial f arg) :members :all))
 
+(defn print-or-die [topic-name msg]
+  (if (= msg :topic/die)
+    (stop-all-logging! topic-name)
+    (println msg)))
+
+(defn send-die [topic-name]
+  (let [tp (get-topic topic-name)]
+    (ch/publish tp :topic/die)))
+
 ;;need to tell everyone to start-logging!
 ;;we could use a topic for this. already have some in core....
 
-;;let's prevent seqs for now....
+;;we can package some form of logging for when we reach the end of
+;;the results...
+;;append a logging call to end, so remove the listener.
+
 (defmacro with-cluster-logging [topic & body]
   `(let [id# (atom nil)]
      (try (let [~'_   (println [:listening-to ~topic])
-                ~'_   (reset! id# (m4peer.core/start-listening ~topic println))
+                ~'_   (reset! id# (m4peer.core/start-listening ~topic (partial m4peer.core/print-or-die ~topic)))
                 ~'_   (println [:start-logging ~topic])
-                ~'_   (hazeldemo.client/eval-all! '~`(m4peer.core/start-logging! ~topic))
+                ~'_   (m4peer.core/start-all-logging! ~topic)
                 res#  (do ~@body)
-                ;~'_     (assert (not (seq? res#)) "result of the macro body cannot be a lazy sequence!")
                 ]
             res#)
-          (finally #_(do (println [:stop-logging ~topic])
-                       (m4peer.core/stop-logging! ~topic))))))
+          #_
+          (finally (m4peer.core/send-die ~topic)))))
 
 ;;from random runs examples
 (comment
