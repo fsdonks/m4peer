@@ -77,6 +77,7 @@
 ;;we don't want to redirect logging over the net if we're
 ;;running on the caller...for now we do though...
 ;;these probably need to be in m4peer.
+
 (defn start-logging! [topic-name]
   ;;create a topic
   ;;broadcast to everybody via log-topic that they should start logging,
@@ -85,12 +86,14 @@
   ;;maybe we have an atomic value for log-topic....
   (let [tp (get-topic topic-name)
         publish (fn [x] (ch/publish tp (with-ip x)))]
-    (reset! util/log-fn publish)))
+    (reset! util/log-fn publish)
+    (with-ip "started-cluster-logging")))
 
 ;;do we need to clean up the listener here?
 (defn stop-logging! [topic-name]
   (let [tp (core/destroy! topic-name)] ;;idempotent.
-    (reset! util/log-fn println)))
+    (reset! util/log-fn println)
+    (with-ip "stopped-cluster-logging")))
 
 (defn stop-all-logging! [topic-name]
   (hazeldemo.client/eval-all! `(m4peer.core/stop-logging! ~topic-name)))
