@@ -32,10 +32,15 @@
 (require 'marathon.serial :reload)
 (taoensso.nippy/swap-serializable-whitelist! (fn [old] (conj old "java.util.Random")))
 
+;;dynvar to try to exert throughput control for distributed
+;;mapping buffer.  Experiments show 1 is ideal so far.
+(def ^:dynamic *part-size* 1)
 (defn exec-experiments [xs]
   (case *run-site*
     :local   (marathon.analysis.random/parallel-exec xs)
-    :cluster (client/fmap marathon.analysis.random/supply-experiment xs) ;;naive
+    :cluster (if (= *part-size* 0)
+               (client/fmap marathon.analysis.random/supply-experiment xs) ;;naive
+               (client/ufmap  *part-size* marathon.analysis.random/supply-experiment xs))
     (throw (ex-info "unknown *run-site*" {:in *run-site*}))))
 
 ;;we hook the default, when using the peer, to use our version of exec-experiments.
@@ -121,17 +126,24 @@
 ;;the results...
 ;;append a logging call to end, so remove the listener.
 
+;;defines a dynvar to globally control logging from members.
+(def ^:dynamic *cluster-logging* false)
+
 (defmacro with-cluster-logging [topic & body]
   `(let [id# (atom nil)]
-     (try (let [~'_   (println [:listening-to ~topic])
-                ~'_   (reset! id# (m4peer.core/start-listening ~topic (partial m4peer.core/print-or-die ~topic)))
-                ~'_   (println [:start-logging ~topic])
-                ~'_   (m4peer.core/start-all-logging! ~topic)
-                res#  (do ~@body)
-                ]
-            res#)
-          #_
-          (finally (m4peer.core/send-die ~topic)))))
+     (if-not ~'m4peer.core/*cluster-logging*
+       (do ~@body)
+       (try (let [~'_   (println [:listening-to ~topic])
+                  ~'_   (reset! id#
+                          (m4peer.core/start-listening ~topic
+                               (partial m4peer.core/print-or-die ~topic)))
+                  ~'_   (println [:start-logging ~topic])
+                  ~'_   (m4peer.core/start-all-logging! ~topic)
+                  res#  (do ~@body)
+                  ]
+              res#)
+            #_
+            (finally (m4peer.core/send-die ~topic))))))
 
 ;;from random runs examples
 (comment
